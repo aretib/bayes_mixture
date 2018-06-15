@@ -1,0 +1,95 @@
+
+            model{
+
+		for (i in 1:N){
+            		for (t in 1:Tm){
+				Y[i,t] ~ dpois(m[i,t])
+            			log(m[i,t]) <- log.mu[i,t] + log(off[i])
+            			log.mu[i,t] <-  z[i,t] * common[i,t] + (1-z[i,t]) * specific[i,t] 
+            			z[i,t] ~ dbern(p[i,t])
+            			logit(p[i,t]) <- beta[i] + wz[t] + logit(phi)
+					}
+	        		}
+            
+            	phi ~ dunif(0.9, 1)
+            
+		## common trend model             
+            	
+		for (i in 1:N){
+			for (t in 1:Tm){
+				Y1[i,t] ~ dpois(mu1[i,t])
+            			log(mu1[i,t]) <- alpha + log(off[i]) + V[i]+ W[t] 
+            			temp1[i,t] <-  alpha  + W[t] + V[i]
+            			common[i,t] <- cut(temp1[i,t])
+					}
+
+            		# posterior residual relative risk
+            		RR[i] <- exp(alpha + V[i])
+            		resRR[i] <- exp(V[i]) 
+		            	}
+            
+            	# prior specification for common trend model
+            	
+		for (i in 1:N){
+			V[i] ~ dnorm(U[i], prec.v)   
+				}
+            	U[1:N] ~ car.normal(adj[],weights[],num[],prec.u)
+		beta[1:N] ~ car.normal(adj[],weights[],num[],prec.beta)
+		W[1:Tm] ~ car.normal(adj.tm[], weights.tm[], num.tm[], prec.w)
+                wz[1:Tm] ~ car.normal(adj.tm[], weights.tm[], num.tm[], prec.wz)
+            
+            	for(t in 1:Tm){
+			Time_common[t] <- exp(W[t])
+			      }
+		alpha ~ dflat()
+	        meanRR <- exp(alpha)
+        	prec.w <- pow(sigma.w,-2)
+            	sigma.w ~ dnorm(0,1)I(0,)
+            	prec.wz <- pow(sigma.wz,-2)
+            	sigma.wz ~ dnorm(0,1)I(0,)
+            	prec.v <- pow(sigma.v,-2)
+            	sigma.v ~ dnorm(0,1)I(0,)
+            	prec.u <- pow(sigma.u,-2)
+            	sigma.u ~ dnorm(0,1)I(0,)
+                prec.beta <- pow(sigma.beta,-2)
+            	sigma.beta ~ dnorm(0,1)I(0,)
+            
+            	
+		## area specific trend model
+
+	        for (i in 1:N){
+			for (t in 1:Tm){
+				Y2[i,t] ~ dpois(mu2[i,t])
+				log(mu2[i,t]) <-  log(off[i]) + u[i] + xi[i,t] 
+			        temp2[i,t] <-  u[i] + xi[i,t]  
+            			specific[i,t] <- cut(temp2[i,t])
+            				}
+            
+            	# prior specification for area specific trend model
+           
+           	xi[i,1:Tm] ~ car.normal(adj.tm[],weights.tm[],num.tm[],prec.xi[i])	
+                u[i] ~ dnorm(0,0.001)
+	        prec.xi[i] <- pow(sigma.xi[i],-2)
+          	sigma.xi[i] ~ dnorm(0,1)I(0,)
+            			}
+            
+            	# posterior temporal effects 
+            	for( i in 1:N){
+            		for (t in 1:Tm) {
+            			Time_specific[i,t] <- exp(xi[i,t])
+            				}
+            			}
+            
+            	# weight matrix and adjacency matrix for the time effects
+   		for(t in 1:1){
+			weights.tm[t] <- 1; adj.tm[t] <- t+1; num.tm[t] <- 1
+            			}
+		for(t in 2:(Tm-1)){
+			weights.tm[2+(t-2)*2] <- 1; adj.tm[2+(t-2)*2] <- t-1
+			weights.tm[3+(t-2)*2] <- 1; adj.tm[3+(t-2)*2] <- t+1; num.tm[t] <- 2}
+            	for(t in Tm:Tm){
+			weights.tm[(Tm-2)*2 + 2] <- 1; adj.tm[(Tm-2)*2 + 2] <- t-1; num.tm[t] <- 1
+			       }
+            
+            } # end of model
+            
